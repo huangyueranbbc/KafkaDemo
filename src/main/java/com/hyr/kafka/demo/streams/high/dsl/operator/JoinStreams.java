@@ -33,14 +33,14 @@ public class JoinStreams {
         KeyValueMapper<String, String, String> leftSelect = new KeyValueMapper<String, String, String>() {
             public String apply(String key, String line) {
                 System.out.println(key + ":" + line);
-                return key;
+                return line;
             }
         };
 
         KeyValueMapper<String, String, String> rightSelect = new KeyValueMapper<String, String, String>() {
             public String apply(String key, String line) {
                 System.out.println(key + ":" + line);
-                return key;
+                return line;
             }
         };
 

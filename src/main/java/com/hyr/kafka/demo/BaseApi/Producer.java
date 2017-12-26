@@ -42,7 +42,7 @@ public class Producer {
 
         try {
 
-            for (int i = 0; i < 10000; i++) {
+            for (int i = 0; i < 1000; i++) {
                 Random rn = new Random();
 
                 int rnd = rn.nextInt(500);
