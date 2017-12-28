@@ -1,4 +1,4 @@
-package com.hyr.kafka.demo.streams.high.dsl.operator;
+package com.hyr.kafka.demo.streams.high.dsl.operator.Join;
 
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.KafkaStreams;
@@ -12,9 +12,9 @@ import java.util.concurrent.TimeUnit;
 /*******************************************************************************
  * @date 2017-12-26 下午 2:59
  * @author: <a href=mailto:huangyr@bonree.com>黄跃然</a>
- * @Description: Join 连接多个流
+ * @Description: KStream Join KStream
  ******************************************************************************/
-public class JoinStreams {
+public class KStreamJoinKStream {
 
     public static void main(String[] args) {
         Map<String, Object> props = new HashMap<String, Object>();
@@ -60,9 +60,9 @@ public class JoinStreams {
         streams.start();
 
         // 发送数据
-        com.hyr.kafka.demo.BaseApi.Producer producer=new com.hyr.kafka.demo.BaseApi.Producer();
-        producer.producerTopic1="my-input-topic1";
-        producer.producerTopic2="my-input-topic2";
+        com.hyr.kafka.demo.BaseApi.Producer producer = new com.hyr.kafka.demo.BaseApi.Producer();
+        producer.producerTopic1 = "my-input-topic1";
+        producer.producerTopic2 = "my-input-topic2";
         producer.runProducer();
     }
 
