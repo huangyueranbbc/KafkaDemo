@@ -57,7 +57,7 @@ public class KafkaRebalanceListener {
             public void onPartitionsAssigned(Collection<TopicPartition> partitions) {
                 System.out.println(" onPartitionsAssigned partitions.size:" + partitions.size());
                 for (TopicPartition partition : partitions) {
-                    long lastOffset = consumed.get(partition); // 该partition上一次消费的offset标记
+                    long lastOffset = consumed.get(partition); // 该partition当前需要消费(还没有消费)的offset
                     System.out.println(getNowDate() + " lastOffset:" + lastOffset + "\t partition:" + partition);
                     consumer.seek(partition, lastOffset);
 
