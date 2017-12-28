@@ -64,10 +64,6 @@ public class Consumer {
                     totalLatency += latency;
                     count += 1;
                     System.out.println(getNowDate() + " partition:" + record.partition() + " region(key): " + record.key() + "  clicks(value): " + record.value() + "   outputTime: " + unixTime + " minCreationTime : " + minCreationTime + "  totallatency: " + totalLatency + "  count: " + count + " offset" + record.offset());
-                    // poll 消费每一条数据后,自动提交offset到当前的partition。
-                    long offset = record.offset(); // 当前已经消费过的offset
-                    Map<TopicPartition, OffsetAndMetadata> offsetAndMetadataMap = Collections.singletonMap(
-                            partition, new OffsetAndMetadata(offset + 1)); // 由于手动提交,offset需要+1,指向下一个还没有消费的offset。
                 }
 
             }
