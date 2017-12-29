@@ -6,5 +6,6 @@
 5.Connector  
 6.Rebalance  
 7.Offset  
+8.OffsetAtomic 避免数据丢失或重复消费  
   
 更新中......  

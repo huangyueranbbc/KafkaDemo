@@ -14,8 +14,8 @@ import java.util.Random;
  ******************************************************************************/
 public class Producer {
 
-    public static String producerTopic1 = "my-output-topic";
-    public static String producerTopic2 = "my-output-topic";
+    public static String producerTopic1 = "testoffset";
+    public static String producerTopic2 = "testoffset";
 
     public static void main(String[] args) throws IOException {
         runProducer();
@@ -42,7 +42,7 @@ public class Producer {
 
         try {
 
-            for (int i = 0; i < 1000; i++) {
+            for (int i = 0; i < 10000; i++) {
                 Random rn = new Random();
 
                 int rnd = rn.nextInt(500);
