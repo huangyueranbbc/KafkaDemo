@@ -17,6 +17,7 @@ import java.util.*;
  * @date 2017-12-28 上午 9:40
  * @author: <a href=mailto:huangyr@bonree.com>黄跃然</a>
  * @Description: kafka 保证消息处理和offset提交的原子性。 解决数据重复消费或数据丢失的问题。
+ * Ensure the atomicity of message processing and offset submission. Solve the problem of data duplication or data loss.
  ******************************************************************************/
 public class KafkaOffsetAtomic {
 
@@ -26,7 +27,22 @@ public class KafkaOffsetAtomic {
     1.如果是关系型数据库,使用事务保证其原子性。
     2.如果是搜索引擎,将offset和索引存放在一起。
 
-    针对于分布式集群环境下,使用redis存储offset是最佳选择。
+    针对于分布式集群环境下,使用redis存储offset是最佳选择。保存后,每次rebalance或Kafka重启,通过seek去redis中读取指定topic中partition的offset
+
+    Offset保存格式:K-V
+    使用partion+topic作为Key,offset作为Value
+
+
+    Avoiding repeated consumption and data loss must guarantee the atomicity of message processing and offset submission.
+    The official proposal:
+    1. if it is a relational database, use transactions to ensure its atomicity.
+    2. if it is a search engine, store the offset and the index together.
+
+    In a distributed cluster environment, using redis to store offset is the best choice.
+    After saving, every time rebalance or Kafka is restarted, the offset of partition in the specified topic is read through seek to redis
+
+    Offset save format: K-V
+    Use partion+topic as Key, offset as Value
      */
 
     // 使用redis存储offset
@@ -56,7 +72,7 @@ public class KafkaOffsetAtomic {
 
         ConsumerRebalanceListener consumerRebalanceListener = new ConsumerRebalanceListener() {
 
-            // 保存偏移量 保存每一个partition已经提交消费的offset。
+            // 保存偏移量 保存每一个partition已经提交消费的offset。 Save the offset to save offset for each partition that has already been submitted to the consumption.
             @Override
             public void onPartitionsRevoked(Collection<TopicPartition> partitions) {
                 System.out.println(" onPartitionsRevoked partitions.size:" + partitions.size());
@@ -74,7 +90,7 @@ public class KafkaOffsetAtomic {
                 }
             }
 
-            // 提取偏移量
+            // 提取偏移量 Extraction of offset
             @Override
             public void onPartitionsAssigned(Collection<TopicPartition> partitions) {
                 System.out.println(" onPartitionsAssigned partitions.size:" + partitions.size());
