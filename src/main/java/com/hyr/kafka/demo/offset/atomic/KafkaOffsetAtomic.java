@@ -280,8 +280,4 @@ public class KafkaOffsetAtomic {
         }
     }
 
-    private static void initRedis() {
-
-    }
-
 }
