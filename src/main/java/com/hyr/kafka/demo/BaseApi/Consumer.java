@@ -14,7 +14,7 @@ import java.util.*;
 /*******************************************************************************
  * @date 2017-12-25 19:51
  * @author: <a href=mailto:huangyr@bonree.com>黄跃然</a>
- * @Description: Consumer 消费者
+ * @Description: Consumer 消费者 Kafka consumer不是线程安全的
  ******************************************************************************/
 public class Consumer {
 

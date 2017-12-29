@@ -2,7 +2,6 @@ package com.hyr.kafka.demo.offset.atomic;
 
 import com.hyr.kafka.demo.utils.RedisUtil;
 import org.apache.kafka.clients.consumer.*;
-import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import redis.clients.jedis.Jedis;
 
@@ -47,7 +46,7 @@ public class KafkaOffsetAtomic {
      */
 
     // 使用redis存储offset
-    static Jedis jedis = RedisUtil.getJedis();
+    static Jedis redis = RedisUtil.getJedis();
     //static ConcurrentHashMap<TopicPartition, Long> consumed; // 每个partition已消费的标记 通常会保存到其他的文件系统中,避免随kafka程序销毁而同时销毁。
 
     public static String topic = "testoffsetp5";
@@ -80,13 +79,13 @@ public class KafkaOffsetAtomic {
                 for (TopicPartition partition : partitions) {
                     if (consumer != null) {
                         OffsetAndMetadata offsetAndMetadata = consumer.committed(partition);
-                        // 如果当前partition是首次消费,当前partition的offset设为0
+                        // 如果当前partition是首次消费,当前partition的offset设为0。  If the current partition is the first consumption, the current partition's offset is set to 0。
                         if (null == offsetAndMetadata || offsetAndMetadata.offset() < 0) {
-                            jedis.set(partition + "_" + topic, String.valueOf(0));
+                            redis.set(partition + "_" + topic, String.valueOf(0));
                             continue;
                         }
                         System.out.println(getNowDate() + " now offset:" + offsetAndMetadata.offset() + " partition" + partition);
-                        jedis.set(partition + "_" + topic, String.valueOf(offsetAndMetadata.offset()));
+                        redis.set(partition + "_" + topic, String.valueOf(offsetAndMetadata.offset()));
                     }
                 }
             }
@@ -96,10 +95,10 @@ public class KafkaOffsetAtomic {
             public void onPartitionsAssigned(Collection<TopicPartition> partitions) {
                 System.out.println(" onPartitionsAssigned partitions.size:" + partitions.size());
                 for (TopicPartition partition : partitions) {
-                    long lastOffset = Long.parseLong(jedis.get(partition + "_" + topic)); // 该partition当前需要消费(还没有消费)的offset
+                    long lastOffset = Long.parseLong(redis.get(partition + "_" + topic)); // 该partition当前需要消费(还没有消费)的offset。  The partition currently needs to consume (not yet consumed) offset
                     System.out.println(getNowDate() + " lastOffset:" + lastOffset + "\t partition:" + partition);
                     if (consumer != null) {
-                        consumer.seek(partition, lastOffset); // 指定当前partition消费的位置 继承之前revoke保存的offset
+                        consumer.seek(partition, lastOffset); // 指定当前partition消费的位置。  Specify the location of the current partition consumption.
                     }
 
                 }
@@ -114,7 +113,16 @@ public class KafkaOffsetAtomic {
         Long minCreationTime = Long.MAX_VALUE;
 
         while (true) {
-            ConsumerRecords<String, String> records = consumer.poll(100);
+            // TODO 如果还是担心会消费到错误offset的数据,可以在每次poll之前,再对每个partition进行一次seek。但这会影响性能。 If you still worry about consuming the wrong offset data, you can make a seek for each partition before each poll. But this will affect performance
+            //            Set<TopicPartition> topicPartitions = consumer.assignment();
+            //            for (TopicPartition partition : topicPartitions) {
+            //                // redis取出offset getOffsetFromDB
+            //                long offset = Long.parseLong(redis.get(partition + "_" + topic));
+            //                consumer.seek(partition, offset);
+            //                System.out.println("before poll seek offser:" + offset + " partition:" + partition + " topic:" + topic);
+            //            }
+
+            ConsumerRecords<String, String> records = consumer.poll(1000);
             if (records != null && !records.isEmpty()) {
 
                 // 迭代每一个partition
@@ -135,13 +143,14 @@ public class KafkaOffsetAtomic {
                         count += 1;
 
                         System.out.println(getNowDate() + " partition:" + record.partition() + " region(key): " + record.key() + "  clicks(value): " + record.value() + "   outputTime: " + unixTime + " minCreationTime : " + minCreationTime + "  totallatency: " + totalLatency + "  count: " + count + " offset" + record.offset());
-                        // poll 消费每一条数据后,自动提交offset到当前的partition。
-                        long offset = record.offset(); // 当前已经消费过的offset
+                        // poll 消费每一条数据后,自动提交offset到当前的partition。  After each data is consumed, offset is automatically submitted to the current partition.
+                        long offset = record.offset(); // 当前已经消费过的offset。  Offset, which is currently consumed。
                         Map<TopicPartition, OffsetAndMetadata> offsetAndMetadataMap = Collections.singletonMap(
-                                partition, new OffsetAndMetadata(offset + 1)); // 由于手动提交,offset需要+1,指向下一个还没有消费的offset。
+                                partition, new OffsetAndMetadata(offset + 1)); // 由于手动提交,offset需要+1,指向下一个还没有消费的offset。 Due to manual submission, offset needs +1, pointing to the next offset that has not been consumed yet.
 
-                        // TODO 保证消息处理和offset提交的原子性。解决数据丢失或数据重复消费。
-                        insertDB(record.partition() + "00000000" + record.offset(), record.value(), jedis, consumer, offsetAndMetadataMap, record, partition);
+                        // 保证消息处理和offset提交的原子性。解决数据丢失或数据重复消费。 Ensure the atomicity of message processing and offset submission. Solve data loss or data repeated consumption.
+                        // Buffer buffer=new Buffer(); // 使用buffer缓冲
+                        insertAtomicDB(record.partition() + "00000000" + record.offset(), record.value(), redis, consumer, offsetAndMetadataMap, record, partition);
                     }
 
                 }
@@ -168,17 +177,18 @@ public class KafkaOffsetAtomic {
     }
 
     /**
-     * 入库
-     * 同时提交offset,保证原子性
+     * 入库,消息处理。 Warehousing, message processing.
+     * 同时提交offset,保证原子性。如果失败异常则一同回滚
+     * At the same time, the offset is submitted to ensure the atomicity. If the failure is unsuccessful, it rolls back together
      */
-    public static void insertDB(String v1, String v2, Jedis redis, KafkaConsumer<String, String> consumer, Map<TopicPartition, OffsetAndMetadata> offsetAndMetadataMap, ConsumerRecord<String, String> record, TopicPartition partition) {
+    public static void insertAtomicDB(String v1, String v2, Jedis redis, KafkaConsumer<String, String> consumer, Map<TopicPartition, OffsetAndMetadata> offsetAndMetadataMap, ConsumerRecord<String, String> record, TopicPartition partition) {
         Statement statement = null;
         Connection connection = null;
-        // 上一次消费的offset 用于回滚RollBack
+        // 上一次消费的offset 用于回滚RollBack getOffsetFromDB。     The last consumption of offset was used to roll back
         long lastOffset;
         if (redis.exists(partition + "_" + topic)) {
             lastOffset = Long.parseLong(redis.get(partition + "_" + topic));
-        } else {// 如果没有消费记录
+        } else {// 如果没有消费记录  If there is no record of consumption
             lastOffset = 0;
         }
 
@@ -191,7 +201,7 @@ public class KafkaOffsetAtomic {
             //2.获得数据库链接
             connection = DriverManager.getConnection(URL, USER, PASSWORD);
 
-            // 关闭自动提交
+            // 关闭自动提交  Close automatic submission
             connection.setAutoCommit(false);
 
             // 4.执行插入
@@ -204,10 +214,12 @@ public class KafkaOffsetAtomic {
             System.out.println(sql);
             statement = connection.createStatement();
 
-            // TODO 针对关系型数据库,使用事务保证消息处理和offset提交的原子性
+            // TODO 针对关系型数据库,使用事务保证消息处理和offset提交的原子性。 For relational databases, transactional message processing and offset submitted atomicity
+
             // 4.2 调用Statement对象的executeUpdate(sql) 执行SQL 语句的插入
             statement.executeUpdate(sql);
 
+            // 手动提交offset。  Manual submission of offset
             redis.set(partition + "_" + topic, String.valueOf(record.offset() + 1));
             // 系统自身的提交offset
             //consumer.commitSync(offsetAndMetadataMap);

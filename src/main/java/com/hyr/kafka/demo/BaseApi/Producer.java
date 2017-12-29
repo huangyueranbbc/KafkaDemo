@@ -10,7 +10,7 @@ import java.util.Random;
 /*******************************************************************************
  * @date 2017-12-25 19:51
  * @author: <a href=mailto:huangyr@bonree.com>黄跃然</a>
- * @Description: Producer 生产者
+ * @Description: Producer 生产者 线程安全
  ******************************************************************************/
 public class Producer {
 
@@ -18,7 +18,7 @@ public class Producer {
     public static String producerTopic2 = "testoffsetp5";
 
     public static void main(String[] args) throws IOException {
-        runProducer();
+            runProducer();
     }
 
     public static void runProducer() {
