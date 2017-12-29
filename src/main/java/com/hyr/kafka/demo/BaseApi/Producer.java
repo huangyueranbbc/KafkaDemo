@@ -14,8 +14,8 @@ import java.util.Random;
  ******************************************************************************/
 public class Producer {
 
-    public static String producerTopic1 = "testoffset";
-    public static String producerTopic2 = "testoffset";
+    public static String producerTopic1 = "testoffsetp5";
+    public static String producerTopic2 = "testoffsetp5";
 
     public static void main(String[] args) throws IOException {
         runProducer();

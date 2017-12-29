@@ -2,6 +2,7 @@ package com.hyr.kafka.demo.offset.atomic;
 
 import com.hyr.kafka.demo.utils.RedisUtil;
 import org.apache.kafka.clients.consumer.*;
+import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import redis.clients.jedis.Jedis;
 
@@ -49,7 +50,7 @@ public class KafkaOffsetAtomic {
     static Jedis jedis = RedisUtil.getJedis();
     //static ConcurrentHashMap<TopicPartition, Long> consumed; // 每个partition已消费的标记 通常会保存到其他的文件系统中,避免随kafka程序销毁而同时销毁。
 
-    public static String topic = "testoffset";
+    public static String topic = "testoffsetp5";
 
     public static void main(String[] args) throws IOException {
         runConsumer();
@@ -64,7 +65,7 @@ public class KafkaOffsetAtomic {
         props.put("group.id", group);
         props.put("enable.auto.commit", "true");
         props.put("auto.commit.interval.ms", "1000");
-        props.put("session.timeout.ms", "10000");
+        props.put("session.timeout.ms", "6000");
         props.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
         props.put("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
 
@@ -209,7 +210,7 @@ public class KafkaOffsetAtomic {
 
             redis.set(partition + "_" + topic, String.valueOf(record.offset() + 1));
             // 系统自身的提交offset
-            consumer.commitSync(offsetAndMetadataMap);
+            //consumer.commitSync(offsetAndMetadataMap);
 
             // 提交
             connection.commit();
@@ -217,8 +218,12 @@ public class KafkaOffsetAtomic {
         } catch (SQLException e) {
             // RollBack
             try {
-                connection.rollback();
-                redis.set(partition + "_" + topic, String.valueOf(lastOffset));
+                if (null != connection && null != redis) {
+                    connection.rollback();
+                    redis.set(partition + "_" + topic, String.valueOf(lastOffset));
+                } else {
+                    System.err.println("connection:" + connection + " redis:" + redis);
+                }
             } catch (SQLException e1) {
                 e1.printStackTrace();
             }
@@ -231,19 +236,18 @@ public class KafkaOffsetAtomic {
         } catch (Exception e) {
             // RollBack
             try {
-                connection.rollback();
-                redis.set(partition + "_" + topic, String.valueOf(lastOffset));
+                if (null != connection && null != redis) {
+                    connection.rollback();
+                    redis.set(partition + "_" + topic, String.valueOf(lastOffset));
+                } else {
+                    System.err.println("connection:" + connection + " redis:" + redis);
+                }
             } catch (SQLException e1) {
                 e1.printStackTrace();
             }
 
             e.printStackTrace();
         } finally {
-            try {
-                connection.setAutoCommit(true);
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
             // 5.关闭Statement对象
             if (statement != null) {
                 try {
@@ -255,6 +259,7 @@ public class KafkaOffsetAtomic {
             if (connection != null) {
                 // 2.关闭连接
                 try {
+                    connection.setAutoCommit(true);
                     connection.close();
                 } catch (SQLException e) {
                     e.printStackTrace();
