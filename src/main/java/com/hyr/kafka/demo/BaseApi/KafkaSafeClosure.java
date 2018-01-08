@@ -33,7 +33,7 @@ public class KafkaSafeClosure {
 
     public static void main(String[] args) throws IOException {
         isShutdown = new AtomicBoolean(false);
-        shutdownLatch = new CountDownLatch(1);
+        shutdownLatch = new CountDownLatch(1); // 如果是多线程消费,需要等待线程池的执行返回
         runConsumer();
     }
 
@@ -57,6 +57,7 @@ public class KafkaSafeClosure {
             @Override
             public void run() {
                 try {
+                    System.out.println("Shut Down Hook Run......");
                     shutdown();
                 } catch (InterruptedException e) {
                     e.printStackTrace();
@@ -108,12 +109,21 @@ public class KafkaSafeClosure {
         Long count = 0L;
         Long minCreationTime = Long.MAX_VALUE;
 
+        int index = 0;
+
         try {
+            System.out.println("while1");
             while (!isShutdown.get()) {
                 ConsumerRecords<String, String> records = null;
                 if (consumer != null) {
                     // 如果没有数据就等待100ms。如果有就读取。
                     records = consumer.poll(1000);
+                }
+                index++;
+                System.out.println("已消费" + index + "次");
+                if (index == 4) {
+                    System.out.println("终止执行!");
+                    System.exit(-1);
                 }
                 if (records != null && !records.isEmpty()) {
                     // 迭代每一个partition
@@ -150,12 +160,14 @@ public class KafkaSafeClosure {
                 }
 
             }
+            System.out.println("while2");
         } finally {
             // 必须在执行线程中关闭,如果是外部线程关闭,可能会出现ConcurrentModificationException异常。 KafkaConsumer is not safe for multi-threaded access
             // 因为close方法会执行acquire(),会比较当前consumser执行的threadId线程ID。
+            System.out.println("finally!");
             if (consumer != null && isShutdown.get()) { // 可能是多线程消费模式 所以需要进行判断
                 consumer.close();
-                shutdownLatch.countDown();
+                // shutdownLatch.countDown(); // 如果是多线程消费,需要等待线程池的执行返回
             }
         }
 
@@ -279,7 +291,7 @@ public class KafkaSafeClosure {
     // 关闭
     public static void shutdown() throws InterruptedException {
         isShutdown.set(true);
-        shutdownLatch.await();
+        // shutdownLatch.await(); // 如果是多线程消费,需要等待线程池的执行返回
         // TODO 如果是多线程消费,关闭线程池
         // pool.shutdown(); // 关闭线程池
     }
