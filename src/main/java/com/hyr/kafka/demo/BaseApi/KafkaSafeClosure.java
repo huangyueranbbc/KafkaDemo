@@ -112,7 +112,6 @@ public class KafkaSafeClosure {
         int index = 0;
 
         try {
-            System.out.println("while1");
             while (!isShutdown.get()) {
                 ConsumerRecords<String, String> records = null;
                 if (consumer != null) {
@@ -160,11 +159,9 @@ public class KafkaSafeClosure {
                 }
 
             }
-            System.out.println("while2");
         } finally {
             // 必须在执行线程中关闭,如果是外部线程关闭,可能会出现ConcurrentModificationException异常。 KafkaConsumer is not safe for multi-threaded access
             // 因为close方法会执行acquire(),会比较当前consumser执行的threadId线程ID。
-            System.out.println("finally!");
             if (consumer != null && isShutdown.get()) { // 可能是多线程消费模式 所以需要进行判断
                 consumer.close();
                 // shutdownLatch.countDown(); // 如果是多线程消费,需要等待线程池的执行返回
