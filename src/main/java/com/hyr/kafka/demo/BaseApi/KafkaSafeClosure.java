@@ -110,9 +110,11 @@ public class KafkaSafeClosure {
 
         try {
             while (!isShutdown.get()) {
-                ConsumerRecords<String, String> records = consumer.poll(1000);
+                ConsumerRecords<String, String> records = null;
+                if (consumer != null) {
+                    records = consumer.poll(1000);
+                }
                 if (records != null && !records.isEmpty()) {
-
                     // 迭代每一个partition
                     for (TopicPartition partition : records.partitions()) {
 
