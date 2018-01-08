@@ -46,6 +46,7 @@ public class Consumer {
         Long minCreationTime = Long.MAX_VALUE;
 
         while (true) {
+            // 如果没有数据就等待100ms。如果有就读取。
             ConsumerRecords<String, Long> records = consumer.poll(100);
             // 迭代每一个partition
             for (TopicPartition partition : records.partitions()) {

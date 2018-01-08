@@ -122,6 +122,7 @@ public class KafkaOffsetAtomic {
             //                System.out.println("before poll seek offser:" + offset + " partition:" + partition + " topic:" + topic);
             //            }
 
+            // 如果没有数据就等待100ms。如果有就读取。
             ConsumerRecords<String, String> records = consumer.poll(1000);
             if (records != null && !records.isEmpty()) {
 

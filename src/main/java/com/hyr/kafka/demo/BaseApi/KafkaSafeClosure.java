@@ -112,6 +112,7 @@ public class KafkaSafeClosure {
             while (!isShutdown.get()) {
                 ConsumerRecords<String, String> records = null;
                 if (consumer != null) {
+                    // 如果没有数据就等待100ms。如果有就读取。
                     records = consumer.poll(1000);
                 }
                 if (records != null && !records.isEmpty()) {
