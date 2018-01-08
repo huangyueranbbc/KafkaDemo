@@ -2,14 +2,15 @@ package com.hyr.kafka.demo.multithread.consumser;
 
 import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.errors.WakeupException;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.io.Serializable;
 import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.concurrent.*;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /*******************************************************************************
@@ -28,40 +29,14 @@ public enum MultiThreadConsumer {
     private ExecutorService executor;
 
     private AtomicBoolean isShutdown;
-    private CountDownLatch countDownLatch;
 
-
-    public void init(String brokers, String groupId, String topic1) {
+    public void init(String brokers, String groupId, String topic) {
         isShutdown = new AtomicBoolean(false);
-        countDownLatch = new CountDownLatch(1);
 
         Properties properties = buildKafkaProperty(brokers, groupId);
         this.consumer = new KafkaConsumer<>(properties);
-        this.topic = topic1;
+        this.topic = topic;
 
-        ConsumerRebalanceListener consumerRebalanceListener = new ConsumerRebalanceListener() {
-
-            // 保存偏移量 保存每一个partition已经提交消费的offset。 Save the offset to save offset for each partition that has already been submitted to the consumption.
-            @Override
-            public void onPartitionsRevoked(Collection<TopicPartition> partitions) {
-                consumer.commitSync(); // 保存offset
-            }
-
-            // 提取偏移量 Extraction of offset
-            @Override
-            public void onPartitionsAssigned(Collection<TopicPartition> partitions) {
-                System.out.println(" onPartitionsAssigned partitions.size:" + partitions.size());
-                for (TopicPartition partition : partitions) {
-                    OffsetAndMetadata offsetAndMetadata = consumer.committed(partition);
-                    long lastOffset = offsetAndMetadata.offset();
-                    if (consumer != null) {
-                        consumer.seek(partition, lastOffset); // 指定当前partition消费的位置。  Specify the location of the current partition consumption.
-                    }
-
-                }
-            }
-        };
-        this.consumer.subscribe(Arrays.asList(this.topic), consumerRebalanceListener); // 订阅主题
     }
 
     public void start(int threadNumber) {
@@ -76,62 +51,86 @@ public enum MultiThreadConsumer {
         executor = new ThreadPoolExecutor(threadNumber, threadNumber, 0L, TimeUnit.MILLISECONDS,
                 new ArrayBlockingQueue<Runnable>(1000), new ThreadPoolExecutor.CallerRunsPolicy());
 
-        System.out.println("Subscribed to topic " + topic);
+        try {
+            this.consumer.subscribe(Arrays.asList(this.topic), consumerRebalanceListener); // 订阅主题
+            System.out.println("Subscribed to topic " + topic);
 
-        while (!isShutdown.get()) {
-            executor.submit(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                    Long unixTime;
-                    Long totalLatency = 0L;
-                    Long count = 0L;
-                    Long minCreationTime = Long.MAX_VALUE;
+            final int[] index = {0};
 
-                    ConsumerRecords<String, String> records = consumer.poll(100);
+            while (!isShutdown.get()) {
+                executor.submit(new Runnable() {
+                    @Override
+                    public void run() {
+                        Long unixTime;
+                        Long totalLatency = 0L;
+                        Long count = 0L;
+                        Long minCreationTime = Long.MAX_VALUE;
 
-                    if (records != null && !records.isEmpty()) {
-
-                        // 迭代每一个partition
-                        for (TopicPartition partition : records.partitions()) {
-
-                            // 每一个partition的数据
-                            List<ConsumerRecord<String, String>> partitionRecords = records.records(partition);
-                            for (ConsumerRecord<String, String> record : partitionRecords) {
-                                // For benchmarking tests
-                                Long ts = record.timestamp();
-                                if (ts < minCreationTime) {
-                                    minCreationTime = ts;
-                                }
-                                //TimestampType tp = record.timestampType();
-                                unixTime = System.currentTimeMillis();
-                                Long latency = unixTime - ts;
-                                totalLatency += latency;
-                                count += 1;
-
-                                System.out.println(getNowDate() + " thread:" + Thread.currentThread().getName() + " partition:" + record.partition() + " region(key): " + record.key() + "  clicks(value): " + record.value() + "   outputTime: " + unixTime + " minCreationTime : " + minCreationTime + "  totallatency: " + totalLatency + "  count: " + count + " offset" + record.offset());
-                                // poll 消费每一条数据后,自动提交offset到当前的partition。  After each data is consumed, offset is automatically submitted to the current partition.
-                                long offset = record.offset(); // 当前已经消费过的offset。  Offset, which is currently consumed。
-                                Map<TopicPartition, OffsetAndMetadata> offsetAndMetadataMap = Collections.singletonMap(
-                                        partition, new OffsetAndMetadata(offset + 1)); // 由于手动提交,offset需要+1,指向下一个还没有消费的offset。 Due to manual submission, offset needs +1, pointing to the next offset that has not been consumed yet.
-
-                                insertAtomicDB(record.partition() + "00000000" + record.offset(), record.value(), consumer, offsetAndMetadataMap, record, partition);
-                                // 系统自身的提交offset
-                                consumer.commitSync();
-                            }
-
+                        ConsumerRecords<String, String> records = null;
+                        if (consumer != null) {
+                            records = consumer.poll(100);
                         }
-                        // 使用完poll从本地缓存拉取到数据之后,需要client调用commitSync方法（或者commitAsync方法）去commit 下一次该去读取 哪一个offset的message。
-                        // consumer.commitSync();
-                    }
-                }
-            });
 
+                        index[0]++;
+                        System.out.println("已消费" + index[0] + "次");
+                        if (index[0] == 5) {
+                            System.out.println("终止程序!");
+                            System.exit(0);
+                        }
+
+                        if (records != null && !records.isEmpty()) {
+
+                            // 迭代每一个partition
+                            for (TopicPartition partition : records.partitions()) {
+
+                                // 每一个partition的数据
+                                List<ConsumerRecord<String, String>> partitionRecords = records.records(partition);
+                                for (ConsumerRecord<String, String> record : partitionRecords) {
+                                    // For benchmarking tests
+                                    Long ts = record.timestamp();
+                                    if (ts < minCreationTime) {
+                                        minCreationTime = ts;
+                                    }
+                                    //TimestampType tp = record.timestampType();
+                                    unixTime = System.currentTimeMillis();
+                                    Long latency = unixTime - ts;
+                                    totalLatency += latency;
+                                    count += 1;
+
+                                    System.out.println(getNowDate() + " thread:" + Thread.currentThread().getName() + " partition:" + record.partition() + " region(key): " + record.key() + "  clicks(value): " + record.value() + "   outputTime: " + unixTime + " minCreationTime : " + minCreationTime + "  totallatency: " + totalLatency + "  count: " + count + " offset" + record.offset());
+                                    // poll 消费每一条数据后,自动提交offset到当前的partition。  After each data is consumed, offset is automatically submitted to the current partition.
+                                    long offset = record.offset(); // 当前已经消费过的offset。  Offset, which is currently consumed。
+                                    Map<TopicPartition, OffsetAndMetadata> offsetAndMetadataMap = Collections.singletonMap(
+                                            partition, new OffsetAndMetadata(offset + 1)); // 由于手动提交,offset需要+1,指向下一个还没有消费的offset。 Due to manual submission, offset needs +1, pointing to the next offset that has not been consumed yet.
+
+                                    CustomMessage message = new CustomMessage(record.partition() + "00000000" + record.offset(), record.value(), offsetAndMetadataMap, partition);
+                                    try {
+                                        ConsumerThreadMain.jobQueue.put(message); // 放入队列中
+                                    } catch (InterruptedException e) {
+                                        e.printStackTrace();
+                                    }
+
+                                }
+
+                            }
+                            // 使用完poll从本地缓存拉取到数据之后,需要client调用commitSync方法（或者commitAsync方法）去commit 下一次该去读取 哪一个offset的message。
+                            //consumer.commitSync();
+                        }
+                    }
+                });
+            }
+            System.out.println("over while!!!!!!!!!!!!");
+
+        } catch (WakeupException e) {
+            System.out.println("Catch WakeupException ! Start Consumer Close ...");
+            if (consumer != null && isShutdown.get()) {
+                consumer.close();
+            }
+        } finally {
+            System.out.println("finally!");
+            consumer.close();
         }
+
     }
 
     private static Properties buildKafkaProperty(String brokers, String groupId) {
@@ -160,73 +159,69 @@ public enum MultiThreadConsumer {
         return dateString;
     }
 
-    public void insertAtomicDB(String v1, String v2, KafkaConsumer<String, String> consumer, Map<TopicPartition, OffsetAndMetadata> offsetAndMetadataMap, ConsumerRecord<String, String> record, TopicPartition partition) {
-        Statement statement = null;
-        Connection connection = null;
-        // 上一次消费的offset 用于回滚RollBack getOffsetFromDB。     The last consumption of offset was used to roll back
+    public void stop() throws InterruptedException {
+        if (isShutdown != null) {
+            isShutdown.set(true);
+        }
+        if (consumer != null) {
+            consumer.wakeup();
+        }
+        System.out.println("finish shutdown consumer!");
+        if (executor != null) {
+            //executor.shutdown();
+        }
+        System.out.println("finish shutdown pool!");
+    }
 
+    private ConsumerRebalanceListener consumerRebalanceListener = new ConsumerRebalanceListener() {
+
+        // 保存偏移量 保存每一个partition已经提交消费的offset。 Save the offset to save offset for each partition that has already been submitted to the consumption.
+        @Override
+        public void onPartitionsRevoked(Collection<TopicPartition> partitions) {
+            //consumer.commitSync(); // 保存offset
+        }
+
+        // 提取偏移量 Extraction of offset
+        @Override
+        public void onPartitionsAssigned(Collection<TopicPartition> partitions) {
+            System.out.println(" onPartitionsAssigned partitions.size:" + partitions.size());
+            for (TopicPartition partition : partitions) {
+                OffsetAndMetadata offsetAndMetadata = consumer.committed(partition);
+                long lastOffset = offsetAndMetadata.offset();
+                if (consumer != null) {
+                    System.out.println("rebalance to partition:" + partition + " offset:" + lastOffset);
+                    consumer.seek(partition, lastOffset); // 指定当前partition消费的位置。  Specify the location of the current partition consumption.
+                }
+
+            }
+        }
+    };
+
+    /**
+     * 提交offset
+     */
+    public void doCommit(Map<TopicPartition, OffsetAndMetadata> offsetAndMetadataMap) {
         try {
-            String URL = "jdbc:mysql://localhost:3306/kafkatest";
-            String USER = "root";
-            String PASSWORD = "666666";
-            //1.加载驱动程序
-            Class.forName("com.mysql.jdbc.Driver");
-            //2.获得数据库链接
-            connection = DriverManager.getConnection(URL, USER, PASSWORD);
-
-            // 关闭自动提交  Close automatic submission
-            connection.setAutoCommit(false);
-
-            // 4.执行插入
-            // 4.1 获取操作SQL语句的Statement对象：
-            // 调用Connection的createStatement()方法来创建Statement的对象
-
-            // 3.准备插入的SQL语句
-            String sql = "INSERT INTO ttt(id,text) "
-                    + "VALUES (" + v1 + ",'" + v2 + "')";
-            String str1 = " currentThread:" + Thread.currentThread() + " partition:" + partition + " start insert!!!:";
-            System.out.println(str1 + "\n" + sql);
-            statement = connection.createStatement();
-
-            // TODO 针对关系型数据库,使用事务保证消息处理和offset提交的原子性。 For relational databases, transactional message processing and offset submitted atomicity
-
-            // 4.2 调用Statement对象的executeUpdate(sql) 执行SQL 语句的插入
-            statement.executeUpdate(sql);
-
-            // 提交
-            connection.commit();
-
-        } catch (SQLException e) {
-            if (e.getErrorCode() == 1062) {
-                System.out.println("主键重复 重复消费:" + offsetAndMetadataMap.get(partition).offset());
-                System.exit(-1);
-            }
-            e.printStackTrace();
+            consumer.commitSync(offsetAndMetadataMap);
         } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            // 5.关闭Statement对象
-            if (statement != null) {
-                try {
-                    statement.close();
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
-            }
-            if (connection != null) {
-                // 2.关闭连接
-                try {
-                    connection.setAutoCommit(true);
-                    connection.close();
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
-            }
+            consumer.commitSync(offsetAndMetadataMap);
         }
     }
 
-    public void stop() {
+    /**
+     * 自定义消息实体对象
+     */
+    class CustomMessage implements Serializable {
+        String v1;
+        String v2;
+        Map<TopicPartition, OffsetAndMetadata> offsetAndMetadataMap;
+        TopicPartition partition;
 
-
+        public CustomMessage(String v1, String v2, Map<TopicPartition, OffsetAndMetadata> offsetAndMetadataMap, TopicPartition partition) {
+            this.v1 = v1;
+            this.v2 = v2;
+            this.offsetAndMetadataMap = offsetAndMetadataMap;
+            this.partition = partition;
+        }
     }
 }

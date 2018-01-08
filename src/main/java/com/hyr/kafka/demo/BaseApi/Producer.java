@@ -18,7 +18,9 @@ public class Producer {
     public static String producerTopic2 = "testoffsetp5";
 
     public static void main(String[] args) throws IOException {
+        while (true){
             runProducer();
+        }
     }
 
     public static void runProducer() {
