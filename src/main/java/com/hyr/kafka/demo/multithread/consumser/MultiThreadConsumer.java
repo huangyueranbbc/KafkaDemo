@@ -75,9 +75,10 @@ public enum MultiThreadConsumer {
                             records = consumer.poll(100);
                         }
 
+                        // TODO 测试退出不会丢失数据
                         index[0]++;
                         System.out.println("已消费" + index[0] + "次");
-                        if (index[0] == 5) {
+                        if (index[0] == 10) {
                             System.out.println("终止程序!");
                             System.exit(0);
                         }

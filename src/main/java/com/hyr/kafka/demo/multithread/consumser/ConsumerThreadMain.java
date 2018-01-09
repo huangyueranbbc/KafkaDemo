@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 /*******************************************************************************
  * @date 2018-01-08 上午 15:15
  * @author: <a href=mailto:huangyr@bonree.com>黄跃然</a>
- * @Description: 多线程消费DEMO
+ * @Description: 多线程消费DEMO 平滑退出不丢数据
  ******************************************************************************/
 public class ConsumerThreadMain {
 
@@ -61,6 +61,9 @@ public class ConsumerThreadMain {
                     System.out.println("Shut Down Hook Runing......");
                     MultiThreadConsumer.instance.stop();
 
+                    if (poolRedis != null) {
+                        poolRedis.shutdown();
+                    }
                     if (pool != null) {
                         pool.shutdown();
                     }
@@ -70,7 +73,7 @@ public class ConsumerThreadMain {
                         // 将队列中未处理完毕的消息进行保存到redis
                         while (jobQueue.size() > 0) {
                             MultiThreadConsumer.CustomMessage message = jobQueue.take();
-                            System.out.println("start write to redis! left:" + jobQueue.size() + message.offsetAndMetadataMap.get(message.partition).offset());
+                            System.out.println("start write to redis! left:" + jobQueue.size() +" offset:"+ message.offsetAndMetadataMap.get(message.partition).offset());
                             // object to bytearray
                             ByteArrayOutputStream bo = new ByteArrayOutputStream();
                             ObjectOutputStream oo = new ObjectOutputStream(bo);
@@ -200,6 +203,9 @@ public class ConsumerThreadMain {
     }
 
     private static void runInsertJob(int INSERT_THREAD_NUM) {
+        if (poolRedis != null) {
+            poolRedis.shutdown();
+        }
         System.out.println("runInsertJob start run insert job ! " + redisQueueLen.get());
         pool = new ThreadPoolExecutor(INSERT_THREAD_NUM, INSERT_THREAD_NUM, 0, TimeUnit.SECONDS, new LinkedBlockingDeque<Runnable>(INSERT_THREAD_NUM), new RejectedExecutionHandler() {
             @Override
