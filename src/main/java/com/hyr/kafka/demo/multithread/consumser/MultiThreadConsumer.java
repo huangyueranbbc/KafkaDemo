@@ -37,23 +37,16 @@ public enum MultiThreadConsumer {
         this.consumer = new KafkaConsumer<>(properties);
         this.topic = topic;
 
+        this.consumer.subscribe(Arrays.asList(this.topic), consumerRebalanceListener); // 订阅主题
+        System.out.println("Subscribed to topic " + topic);
+
     }
 
     public void start(int threadNumber) {
-        Set<TopicPartition> topicPartitions = consumer.assignment();
-        for (TopicPartition partition : topicPartitions) {
-            // redis取出offset getOffsetFromDB
-            long offset = consumer.committed(partition).offset();
-            consumer.seek(partition, offset);
-            System.out.println("before poll seek offser:" + offset + " partition:" + partition + " topic:" + topic);
-        }
-
         executor = new ThreadPoolExecutor(threadNumber, threadNumber, 0L, TimeUnit.MILLISECONDS,
                 new ArrayBlockingQueue<Runnable>(1000), new ThreadPoolExecutor.CallerRunsPolicy());
 
         try {
-            this.consumer.subscribe(Arrays.asList(this.topic), consumerRebalanceListener); // 订阅主题
-            System.out.println("Subscribed to topic " + topic);
 
             final int[] index = {0};
 

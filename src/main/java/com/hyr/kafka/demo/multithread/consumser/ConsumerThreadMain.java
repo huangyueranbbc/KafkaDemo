@@ -23,6 +23,8 @@ public class ConsumerThreadMain {
 
     public static LinkedBlockingQueue<MultiThreadConsumer.CustomMessage> jobQueue;
 
+    public static LinkedBlockingQueue<MultiThreadConsumer.CustomMessage> jobQueueRedis;
+
     public static ExecutorService pool = null;
 
     private static AtomicBoolean isInsertStop;
@@ -45,7 +47,7 @@ public class ConsumerThreadMain {
 
         isInsertStop = new AtomicBoolean(false);
 
-        countDownLatch = new CountDownLatch(consumerNumber+1);
+        countDownLatch = new CountDownLatch(consumerNumber + 1);
 
         // 安全关闭Consumer
         Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
@@ -55,7 +57,9 @@ public class ConsumerThreadMain {
                     System.out.println("Shut Down Hook Runing......");
                     MultiThreadConsumer.instance.stop();
 
-                    pool.shutdown();
+                    if(pool!=null){
+                        pool.shutdown();
+                    }
 
                     try {
                         redis = RedisUtil.getJedis();
@@ -87,7 +91,10 @@ public class ConsumerThreadMain {
             }
         }));
 
+        MultiThreadConsumer.instance.init(brokers, groupId, topic);
+
         runInsertJobOfRedis(consumerNumber);
+
         Thread thread = new Thread(new Runnable() {
             @Override
             public void run() {
@@ -95,6 +102,7 @@ public class ConsumerThreadMain {
                 try {
                     redis = RedisUtil.getJedis();
                     redisQueueLen = redis.llen(INSERT_QUEUE_CATCH_KEY.getBytes("utf-8"));
+                    jobQueueRedis = new LinkedBlockingQueue<MultiThreadConsumer.CustomMessage>(30);
                     while (redis.llen(INSERT_QUEUE_CATCH_KEY.getBytes("utf-8")) > 0) {
                         System.out.println("redis size:" + redis.llen(INSERT_QUEUE_CATCH_KEY.getBytes("utf-8")));
                         byte[] bytes = redis.lpop(INSERT_QUEUE_CATCH_KEY.getBytes("utf-8"));
@@ -102,7 +110,7 @@ public class ConsumerThreadMain {
                         ObjectInputStream oi = new ObjectInputStream(bi);
                         MultiThreadConsumer.CustomMessage message = (MultiThreadConsumer.CustomMessage) oi.readObject();
                         System.out.println("consumer redis !" + message.offsetAndMetadataMap.get(message.partition).offset());
-                        jobQueue.put(message);
+                        jobQueueRedis.put(message);
                     }
                 } catch (InterruptedException e) {
                     e.printStackTrace();
@@ -129,9 +137,8 @@ public class ConsumerThreadMain {
         System.out.println("wait ok !");
 
         runInsertJob(consumerNumber); // 多线程入库
-
-        MultiThreadConsumer.instance.init(brokers, groupId, topic);
         MultiThreadConsumer.instance.start(consumerNumber);
+
 
         Thread.currentThread().join();
     }
@@ -159,8 +166,8 @@ public class ConsumerThreadMain {
                     try {
                         while (redisQueueLen > 0) {
                             System.out.println("Start insert!");
-                            System.out.println("jobQueue.size():" + jobQueue.size());
-                            MultiThreadConsumer.CustomMessage message = jobQueue.take();
+                            System.out.println("jobQueueRedis.size():" + jobQueueRedis.size());
+                            MultiThreadConsumer.CustomMessage message = jobQueueRedis.take();
                             Map<TopicPartition, OffsetAndMetadata> offsetAndMetadataMap = message.offsetAndMetadataMap;
                             TopicPartition partition = message.partition;
                             // 消息处理完成,消费成功。系统自身的提交offset。
