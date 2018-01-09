@@ -43,6 +43,17 @@ public enum MultiThreadConsumer {
     }
 
     public void start(int threadNumber) {
+        Set<TopicPartition> partitions = consumer.assignment();
+        for (TopicPartition partition : partitions) {
+            OffsetAndMetadata offsetAndMetadata = consumer.committed(partition);
+            long lastOffset = offsetAndMetadata.offset();
+            if (consumer != null) {
+                System.out.println("rebalance to partition:" + partition + " offset:" + lastOffset);
+                consumer.seek(partition, lastOffset); // 指定当前partition消费的位置。  Specify the location of the current partition consumption.
+            }
+
+        }
+
         executor = new ThreadPoolExecutor(threadNumber, threadNumber, 0L, TimeUnit.MILLISECONDS,
                 new ArrayBlockingQueue<Runnable>(1000), new ThreadPoolExecutor.CallerRunsPolicy());
 
@@ -99,6 +110,7 @@ public enum MultiThreadConsumer {
                                     CustomMessage message = new CustomMessage(record.partition() + "00000000" + record.offset(), record.value(), offsetAndMetadataMap, partition);
                                     try {
                                         ConsumerThreadMain.jobQueue.put(message); // 放入队列中
+                                        consumer.commitSync(offsetAndMetadataMap);
                                     } catch (InterruptedException e) {
                                         e.printStackTrace();
                                     }
@@ -197,7 +209,7 @@ public enum MultiThreadConsumer {
         try {
             consumer.commitSync(offsetAndMetadataMap);
         } catch (Exception e) {
-            consumer.commitSync(offsetAndMetadataMap);
+            e.printStackTrace();
         }
     }
 

@@ -13,6 +13,7 @@ import java.sql.Statement;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /*******************************************************************************
  * @date 2018-01-08 上午 15:15
@@ -25,6 +26,7 @@ public class ConsumerThreadMain {
 
     public static LinkedBlockingQueue<MultiThreadConsumer.CustomMessage> jobQueueRedis;
 
+    public static ExecutorService poolRedis = null;
     public static ExecutorService pool = null;
 
     private static AtomicBoolean isInsertStop;
@@ -35,7 +37,7 @@ public class ConsumerThreadMain {
 
     private static CountDownLatch countDownLatch; // 等待消费redis的线程
 
-    private static Long redisQueueLen;
+    private static AtomicInteger redisQueueLen;
 
     public static void main(String[] args) throws Exception {
         String brokers = "localhost:9092";
@@ -47,7 +49,7 @@ public class ConsumerThreadMain {
 
         isInsertStop = new AtomicBoolean(false);
 
-        countDownLatch = new CountDownLatch(consumerNumber + 1);
+        countDownLatch = new CountDownLatch(2);
 
         // 安全关闭Consumer
         Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
@@ -66,9 +68,9 @@ public class ConsumerThreadMain {
                     try {
                         redis = RedisUtil.getJedis();
                         // 将队列中未处理完毕的消息进行保存到redis
-                        for (int i = 0; i < jobQueue.size(); i++) {
-                            System.out.println("start write to redis! left:" + jobQueue.size());
+                        while (jobQueue.size() > 0) {
                             MultiThreadConsumer.CustomMessage message = jobQueue.take();
+                            System.out.println("start write to redis! left:" + jobQueue.size() + message.offsetAndMetadataMap.get(message.partition).offset());
                             // object to bytearray
                             ByteArrayOutputStream bo = new ByteArrayOutputStream();
                             ObjectOutputStream oo = new ObjectOutputStream(bo);
@@ -95,6 +97,17 @@ public class ConsumerThreadMain {
 
         MultiThreadConsumer.instance.init(brokers, groupId, topic);
 
+        try {
+            redis = RedisUtil.getJedis();
+            redisQueueLen = new AtomicInteger(Integer.parseInt(redis.llen(INSERT_QUEUE_CATCH_KEY.getBytes("utf-8")) + ""));
+            System.out.println("redisQueueLen:" + redisQueueLen);
+        } finally {
+            if (redis != null) {
+                redis.close();
+            }
+        }
+        jobQueueRedis = new LinkedBlockingQueue<MultiThreadConsumer.CustomMessage>(30);
+
         runInsertJobOfRedis(consumerNumber);
 
         Thread thread = new Thread(new Runnable() {
@@ -103,8 +116,6 @@ public class ConsumerThreadMain {
                 // 消费redis数据
                 try {
                     redis = RedisUtil.getJedis();
-                    redisQueueLen = redis.llen(INSERT_QUEUE_CATCH_KEY.getBytes("utf-8"));
-                    jobQueueRedis = new LinkedBlockingQueue<MultiThreadConsumer.CustomMessage>(30);
                     while (redis.llen(INSERT_QUEUE_CATCH_KEY.getBytes("utf-8")) > 0) {
                         System.out.println("redis size:" + redis.llen(INSERT_QUEUE_CATCH_KEY.getBytes("utf-8")));
                         byte[] bytes = redis.lpop(INSERT_QUEUE_CATCH_KEY.getBytes("utf-8"));
@@ -141,13 +152,55 @@ public class ConsumerThreadMain {
         runInsertJob(consumerNumber); // 多线程入库
         MultiThreadConsumer.instance.start(consumerNumber);
 
-
         Thread.currentThread().join();
     }
 
     // 消费redis取出来的消息数据
     private static void runInsertJobOfRedis(int INSERT_THREAD_NUM) {
         System.out.println("runInsertJobOfRedis start run insert job ! ");
+        poolRedis = new ThreadPoolExecutor(INSERT_THREAD_NUM, INSERT_THREAD_NUM, 0, TimeUnit.SECONDS, new LinkedBlockingDeque<Runnable>(INSERT_THREAD_NUM), new RejectedExecutionHandler() {
+            @Override
+            public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
+                try {
+                    if (!executor.isShutdown()) {
+                        executor.getQueue().put(r);
+                    }
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
+        for (int i = 0; i < INSERT_THREAD_NUM; i++) {
+            poolRedis.submit(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        System.out.println("redisQueueLen ====== " + redisQueueLen);
+                        while (redisQueueLen.get() > 0) {
+                            System.out.println("Start insert!");
+                            System.out.println("jobQueueRedis.size():" + jobQueueRedis.size());
+                            MultiThreadConsumer.CustomMessage message = jobQueueRedis.take();
+                            Map<TopicPartition, OffsetAndMetadata> offsetAndMetadataMap = message.offsetAndMetadataMap;
+                            TopicPartition partition = message.partition;
+                            // 消息处理完成,消费成功。系统自身的提交offset。
+                            insertAtomicDB(message.v1, message.v2, offsetAndMetadataMap, partition);
+                            redisQueueLen.addAndGet(-1);
+                            System.out.println("Complete consumer ! partition:" + partition + " offser:" + offsetAndMetadataMap.get(partition).offset());
+                            System.out.println("Complete insert offset:" + offsetAndMetadataMap.get(partition).offset());
+                        }
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    } finally {
+                        countDownLatch.countDown();
+                    }
+                }
+            });
+        }
+    }
+
+    private static void runInsertJob(int INSERT_THREAD_NUM) {
+        System.out.println("runInsertJob start run insert job ! " + redisQueueLen.get());
         pool = new ThreadPoolExecutor(INSERT_THREAD_NUM, INSERT_THREAD_NUM, 0, TimeUnit.SECONDS, new LinkedBlockingDeque<Runnable>(INSERT_THREAD_NUM), new RejectedExecutionHandler() {
             @Override
             public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
@@ -166,37 +219,6 @@ public class ConsumerThreadMain {
                 @Override
                 public void run() {
                     try {
-                        while (redisQueueLen > 0) {
-                            System.out.println("Start insert!");
-                            System.out.println("jobQueueRedis.size():" + jobQueueRedis.size());
-                            MultiThreadConsumer.CustomMessage message = jobQueueRedis.take();
-                            Map<TopicPartition, OffsetAndMetadata> offsetAndMetadataMap = message.offsetAndMetadataMap;
-                            TopicPartition partition = message.partition;
-                            // 消息处理完成,消费成功。系统自身的提交offset。
-                            insertAtomicDB(message.v1, message.v2, offsetAndMetadataMap, partition);
-                            MultiThreadConsumer.instance.doCommit(offsetAndMetadataMap);
-                            redisQueueLen--;
-                            System.out.println("Complete consumer ! partition:" + partition + " offser:" + offsetAndMetadataMap.get(partition).offset());
-                            System.out.println("Complete insert offset:" + offsetAndMetadataMap.get(partition).offset());
-                        }
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    } finally {
-                        countDownLatch.countDown();
-                    }
-                }
-            });
-        }
-    }
-
-    private static void runInsertJob(int INSERT_THREAD_NUM) {
-        System.out.println("runInsertJob start run insert job ! ");
-
-        for (int i = 0; i < INSERT_THREAD_NUM; i++) {
-            pool.submit(new Runnable() {
-                @Override
-                public void run() {
-                    try {
                         while (!isInsertStop.get()) {
                             System.out.println("Start insert!");
                             System.out.println("jobQueue.size():" + jobQueue.size());
@@ -205,7 +227,6 @@ public class ConsumerThreadMain {
                             TopicPartition partition = message.partition;
                             // 消息处理完成,消费成功。系统自身的提交offset。
                             insertAtomicDB(message.v1, message.v2, offsetAndMetadataMap, partition);
-                            MultiThreadConsumer.instance.doCommit(offsetAndMetadataMap);
                             System.out.println("Complete consumer ! partition:" + partition + " offser:" + offsetAndMetadataMap.get(partition).offset());
                         }
                     } catch (InterruptedException e) {
@@ -257,7 +278,6 @@ public class ConsumerThreadMain {
         } catch (SQLException e) {
             if (e.getErrorCode() == 1062) {
                 System.out.println("主键重复 重复消费:" + offsetAndMetadataMap.get(partition).offset());
-                System.exit(-1);
             }
             e.printStackTrace();
         } catch (Exception e) {
