@@ -1,12 +1,14 @@
 # KafkaDemo  
 1.BaseApi  
-2.Streams  
+2.Streams  常用算子操作
 3.Producer  
 4.Consumer  
 5.Connector  
 6.Rebalance  
 7.Offset  
-8.OffsetAtomic 避免数据丢失或重复消费    
+8.OffsetAtomic 避免数据丢失或重复消费  
+9.多线程消费  
+10.优雅的关闭,避免丢失数据  
   
 更新中......    
 
