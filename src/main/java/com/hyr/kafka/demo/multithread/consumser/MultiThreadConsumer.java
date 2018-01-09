@@ -12,6 +12,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /*******************************************************************************
  * @date 2018-01-08 上午 15:15
@@ -59,8 +60,6 @@ public enum MultiThreadConsumer {
 
         try {
 
-            final int[] index = {0};
-
             while (!isShutdown.get()) {
                 executor.submit(new Runnable() {
                     @Override
@@ -71,16 +70,9 @@ public enum MultiThreadConsumer {
                         Long minCreationTime = Long.MAX_VALUE;
 
                         ConsumerRecords<String, String> records = null;
+
                         if (consumer != null) {
                             records = consumer.poll(100);
-                        }
-
-                        // TODO 测试退出不会丢失数据
-                        index[0]++;
-                        System.out.println("已消费" + index[0] + "次");
-                        if (index[0] == 10) {
-                            System.out.println("终止程序!");
-                            System.exit(0);
                         }
 
                         if (records != null && !records.isEmpty()) {
@@ -125,7 +117,6 @@ public enum MultiThreadConsumer {
                     }
                 });
             }
-            System.out.println("over while!!!!!!!!!!!!");
 
         } catch (WakeupException e) {
             System.out.println("Catch WakeupException ! Start Consumer Close ...");
@@ -134,7 +125,9 @@ public enum MultiThreadConsumer {
             }
         } finally {
             System.out.println("finally!");
-            consumer.close();
+            if (consumer != null) {
+                consumer.close();
+            }
         }
 
     }
@@ -166,15 +159,16 @@ public enum MultiThreadConsumer {
     }
 
     public void stop() throws InterruptedException {
+        if (consumer != null) {
+            consumer.unsubscribe();
+            consumer.wakeup();
+        }
         if (isShutdown != null) {
             isShutdown.set(true);
         }
-        if (consumer != null) {
-            consumer.wakeup();
-        }
         System.out.println("finish shutdown consumer!");
         if (executor != null) {
-            //executor.shutdown();
+            executor.shutdown();
         }
         System.out.println("finish shutdown pool!");
     }

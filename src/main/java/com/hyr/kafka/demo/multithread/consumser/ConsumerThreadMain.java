@@ -56,9 +56,10 @@ public class ConsumerThreadMain {
             @Override
             public void run() {
                 try {
+                    System.out.println("Shut Down Hook Runing......");
+
                     isInsertStop.set(true);
 
-                    System.out.println("Shut Down Hook Runing......");
                     MultiThreadConsumer.instance.stop();
 
                     if (poolRedis != null) {
@@ -73,7 +74,7 @@ public class ConsumerThreadMain {
                         // 将队列中未处理完毕的消息进行保存到redis
                         while (jobQueue.size() > 0) {
                             MultiThreadConsumer.CustomMessage message = jobQueue.take();
-                            System.out.println("start write to redis! left:" + jobQueue.size() +" offset:"+ message.offsetAndMetadataMap.get(message.partition).offset());
+                            System.out.println("start write to redis! left:" + jobQueue.size() + " offset:" + message.offsetAndMetadataMap.get(message.partition).offset());
                             // object to bytearray
                             ByteArrayOutputStream bo = new ByteArrayOutputStream();
                             ObjectOutputStream oo = new ObjectOutputStream(bo);
