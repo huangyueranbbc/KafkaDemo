@@ -54,10 +54,12 @@ public class ConsumerThreadMain {
             @Override
             public void run() {
                 try {
+                    isInsertStop.set(true);
+
                     System.out.println("Shut Down Hook Runing......");
                     MultiThreadConsumer.instance.stop();
 
-                    if(pool!=null){
+                    if (pool != null) {
                         pool.shutdown();
                     }
 
