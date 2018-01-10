@@ -1,4 +1,4 @@
-package com.hyr.kafka.demo.BaseApi;
+package com.hyr.kafka.demo.custom.partition;
 
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -10,15 +10,15 @@ import java.util.Random;
 /*******************************************************************************
  * @date 2017-12-25 19:51
  * @author: <a href=mailto:huangyr@bonree.com>黄跃然</a>
- * @Description: Producer 生产者 线程安全
+ * @Description: 自定义分区器Producer
  ******************************************************************************/
-public class Producer {
+public class CustomPartitionProducer {
 
     public static String producerTopic1 = "testoffsetp5";
     public static String producerTopic2 = "testoffsetp5";
 
     public static void main(String[] args) throws IOException {
-        runProducer();
+            runProducer();
     }
 
     public static void runProducer() {
@@ -28,6 +28,7 @@ public class Producer {
         props1.put("client.id", "Producer.1");
         props1.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
         props1.put("value.serializer", "org.apache.kafka.common.serialization.LongSerializer");
+        props1.put("partitioner.class","com.hyr.kafka.demo.custom.partition.MyCustomPartitioner");//我的自定义分区器
         producer1 = new KafkaProducer<String, Long>(props1);
 
         KafkaProducer<String, String> producer2; //生产者1
@@ -36,6 +37,7 @@ public class Producer {
         props2.put("client.id", "DemoProducer2");
         props2.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
         props2.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+        props2.put("partitioner.class","com.hyr.kafka.demo.custom.partition.MyCustomPartitioner");//我的自定义分区器
         producer2 = new KafkaProducer<String, String>(props2);
         String[] states = {"California", "Alabama", "Arkansas", "Arizona", "Alaska", "Colorado", "Connecticut", "Delaware", "Florida", "Georgia", "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey", "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina", "South Dakota", "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming"};
 
