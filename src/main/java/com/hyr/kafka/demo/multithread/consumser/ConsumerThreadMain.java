@@ -37,7 +37,11 @@ public class ConsumerThreadMain {
 
     private static CountDownLatch countDownLatch; // 等待消费redis的线程
 
+    private static CountDownLatch countDownLatch1; // 等待消费redis的线程
+
     private static AtomicInteger redisQueueLen;
+
+    private static AtomicBoolean isConsumerComplete = new AtomicBoolean(false);
 
     public static void main(String[] args) throws Exception {
         String brokers = "localhost:9092";
@@ -51,6 +55,8 @@ public class ConsumerThreadMain {
 
         countDownLatch = new CountDownLatch(2);
 
+        countDownLatch1 = new CountDownLatch(1);
+
         // 安全关闭Consumer
         Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
             @Override
@@ -62,31 +68,41 @@ public class ConsumerThreadMain {
 
                     MultiThreadConsumer.instance.stop();
 
-                    if (poolRedis != null) {
-                        poolRedis.shutdown();
-                    }
-                    if (pool != null) {
-                        pool.shutdown();
-                    }
-
                     try {
                         redis = RedisUtil.getJedis();
                         // 将队列中未处理完毕的消息进行保存到redis
-                        while (jobQueue.size() > 0) {
-                            MultiThreadConsumer.CustomMessage message = jobQueue.take();
-                            System.out.println("start write to redis! left:" + jobQueue.size() + " offset:" + message.offsetAndMetadataMap.get(message.partition).offset());
-                            // object to bytearray
-                            ByteArrayOutputStream bo = new ByteArrayOutputStream();
-                            ObjectOutputStream oo = new ObjectOutputStream(bo);
-                            oo.writeObject(message);
-                            byte[] bytes = bo.toByteArray();
-                            redis.lpush(INSERT_QUEUE_CATCH_KEY.getBytes("utf-8"), bytes);
+
+                        new Thread(new Runnable() {
+                            @Override
+                            public void run() {
+                                try {
+                                    countDownLatch1.await();
+                                    System.out.println("已解锁!");
+                                    isConsumerComplete.set(true);
+                                } catch (InterruptedException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                        }).start(); // 该线程等待所有的kafka队列数据完全消费完毕
+
+                        while (!isConsumerComplete.get() && jobQueue.size() > 0) {
+                            System.out.println("isConsumerComplete:" + isConsumerComplete.get());
+                            try {
+                                int size = jobQueue.size();
+                                MultiThreadConsumer.CustomMessage message = jobQueue.take();
+                                System.out.println("start write to redis! left:" + size + " offset:" + message.offsetAndMetadataMap.get(message.partition).offset());
+                                // object to bytearray
+                                ByteArrayOutputStream bo = new ByteArrayOutputStream();
+                                ObjectOutputStream oo = new ObjectOutputStream(bo);
+                                oo.writeObject(message);
+                                byte[] bytes = bo.toByteArray();
+                                redis.lpush(INSERT_QUEUE_CATCH_KEY.getBytes("utf-8"), bytes);
+                            } catch (Exception e) {
+                                System.out.println("save to redis 异常!");
+                            }
                         }
                         System.out.println("write to redis complete!");
-                    } catch (UnsupportedEncodingException e) {
-                        e.printStackTrace();
-                    } catch (IOException e) {
-                        e.printStackTrace();
+
                     } finally {
                         if (redis != null) {
                             redis.close();
@@ -154,7 +170,7 @@ public class ConsumerThreadMain {
         System.out.println("wait ok !");
 
         runInsertJob(consumerNumber); // 多线程入库
-        MultiThreadConsumer.instance.start(consumerNumber);
+        MultiThreadConsumer.instance.start(consumerNumber, countDownLatch1);
 
         Thread.currentThread().join();
     }
@@ -190,8 +206,8 @@ public class ConsumerThreadMain {
                             // 消息处理完成,消费成功。系统自身的提交offset。
                             insertAtomicDB(message.v1, message.v2, offsetAndMetadataMap, partition);
                             redisQueueLen.addAndGet(-1);
-                            System.out.println("Complete consumer ! partition:" + partition + " offser:" + offsetAndMetadataMap.get(partition).offset());
-                            System.out.println("Complete insert offset:" + offsetAndMetadataMap.get(partition).offset());
+                            System.out.println("runInsertJobOfRedis Complete consumer ! partition:" + partition + " offser:" + offsetAndMetadataMap.get(partition).offset());
+                            System.out.println("runInsertJobOfRedis Complete insert offset:" + offsetAndMetadataMap.get(partition).offset());
                         }
                     } catch (InterruptedException e) {
                         e.printStackTrace();
@@ -236,6 +252,7 @@ public class ConsumerThreadMain {
                             insertAtomicDB(message.v1, message.v2, offsetAndMetadataMap, partition);
                             System.out.println("Complete consumer ! partition:" + partition + " offser:" + offsetAndMetadataMap.get(partition).offset());
                         }
+                        System.out.println("stop insert job finish !");
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }

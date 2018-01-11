@@ -7,12 +7,8 @@ import org.apache.kafka.common.errors.WakeupException;
 import java.io.Serializable;
 import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /*******************************************************************************
  * @date 2018-01-08 上午 15:15
@@ -30,6 +26,9 @@ public enum MultiThreadConsumer {
     private ExecutorService executor;
 
     private AtomicBoolean isShutdown;
+    private ConsumerRecords<String, String> records;
+    static int index = 0;
+    int count_index = 0;
 
     public void init(String brokers, String groupId, String topic) {
         isShutdown = new AtomicBoolean(false);
@@ -43,7 +42,7 @@ public enum MultiThreadConsumer {
 
     }
 
-    public void start(int threadNumber) {
+    public void start(int threadNumber, CountDownLatch countDownLatch1) {
         Set<TopicPartition> partitions = consumer.assignment();
         for (TopicPartition partition : partitions) {
             OffsetAndMetadata offsetAndMetadata = consumer.committed(partition);
@@ -69,11 +68,18 @@ public enum MultiThreadConsumer {
                         Long count = 0L;
                         Long minCreationTime = Long.MAX_VALUE;
 
-                        ConsumerRecords<String, String> records = null;
 
                         if (consumer != null) {
                             records = consumer.poll(100);
                         }
+
+                        // TODO 模拟程序退出
+                        System.out.println("已消费:" + index + "次!");
+                        if (index == 6) {
+                            System.out.println("终止程序!");
+                            System.exit(0);
+                        }
+                        index++;
 
                         if (records != null && !records.isEmpty()) {
 
@@ -103,7 +109,6 @@ public enum MultiThreadConsumer {
                                     CustomMessage message = new CustomMessage(record.partition() + "00000000" + record.offset(), record.value(), offsetAndMetadataMap, partition);
                                     try {
                                         ConsumerThreadMain.jobQueue.put(message); // 放入队列中
-                                        consumer.commitSync(offsetAndMetadataMap);
                                     } catch (InterruptedException e) {
                                         e.printStackTrace();
                                     }
@@ -112,11 +117,65 @@ public enum MultiThreadConsumer {
 
                             }
                             // 使用完poll从本地缓存拉取到数据之后,需要client调用commitSync方法（或者commitAsync方法）去commit 下一次该去读取 哪一个offset的message。
-                            //consumer.commitSync();
+                            try {
+                                consumer.commitSync();
+                            } catch (ConcurrentModificationException e) {
+                                System.out.println("ConcurrentModificationException!!!");
+                            }
                         }
                     }
                 });
             }
+            System.out.println("break while!");
+            System.out.println("records:" + records);
+
+            if (records != null && !records.isEmpty()) {
+                System.out.println("records.count():" + records.count());
+                Long unixTime;
+                Long totalLatency = 0L;
+                Long count = 0L;
+                Long minCreationTime = Long.MAX_VALUE;
+                // 继续消费
+                // 迭代每一个partition
+                for (TopicPartition partition : records.partitions()) {
+
+                    // 每一个partition的数据
+                    List<ConsumerRecord<String, String>> partitionRecords = records.records(partition);
+                    for (ConsumerRecord<String, String> record : partitionRecords) {
+                        // For benchmarking tests
+                        Long ts = record.timestamp();
+                        if (ts < minCreationTime) {
+                            minCreationTime = ts;
+                        }
+                        //TimestampType tp = record.timestampType();
+                        unixTime = System.currentTimeMillis();
+                        Long latency = unixTime - ts;
+                        totalLatency += latency;
+                        count += 1;
+
+                        try {
+                            System.out.println("last consumer ! ---" + getNowDate() + " thread:" + Thread.currentThread().getName() + " partition:" + record.partition() + " region(key): " + record.key() + "  clicks(value): " + record.value() + "   outputTime: " + unixTime + " minCreationTime : " + minCreationTime + "  totallatency: " + totalLatency + "  count: " + count + " offset" + record.offset() + " count_index:" + count_index);
+                            // poll 消费每一条数据后,自动提交offset到当前的partition。  After each data is consumed, offset is automatically submitted to the current partition.
+                            long offset = record.offset(); // 当前已经消费过的offset。  Offset, which is currently consumed。
+                            Map<TopicPartition, OffsetAndMetadata> offsetAndMetadataMap = Collections.singletonMap(
+                                    partition, new OffsetAndMetadata(offset + 1)); // 由于手动提交,offset需要+1,指向下一个还没有消费的offset。 Due to manual submission, offset needs +1, pointing to the next offset that has not been consumed yet.
+
+                            CustomMessage message = new CustomMessage(record.partition() + "00000000" + record.offset(), record.value(), offsetAndMetadataMap, partition);
+
+                            ConsumerThreadMain.jobQueue.put(message); // 放入队列中
+                            consumer.commitSync(offsetAndMetadataMap);
+                            count_index++;
+                        } catch (Exception e) {
+                            System.out.println("最后消费异常!");
+                            e.printStackTrace();
+                        }
+
+                    }
+                }
+            }
+
+            countDownLatch1.countDown(); // 解锁
+            System.out.println("put ok!");
 
         } catch (WakeupException e) {
             System.out.println("Catch WakeupException ! Start Consumer Close ...");
@@ -159,18 +218,10 @@ public enum MultiThreadConsumer {
     }
 
     public void stop() throws InterruptedException {
-        if (consumer != null) {
-            consumer.unsubscribe();
-            consumer.wakeup();
-        }
+        System.out.println("start stop commond !");
         if (isShutdown != null) {
             isShutdown.set(true);
         }
-        System.out.println("finish shutdown consumer!");
-        if (executor != null) {
-            executor.shutdown();
-        }
-        System.out.println("finish shutdown pool!");
     }
 
     private ConsumerRebalanceListener consumerRebalanceListener = new ConsumerRebalanceListener() {
