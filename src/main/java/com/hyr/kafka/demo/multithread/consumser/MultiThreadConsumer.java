@@ -109,19 +109,18 @@ public enum MultiThreadConsumer {
                                     CustomMessage message = new CustomMessage(record.partition() + "00000000" + record.offset(), record.value(), offsetAndMetadataMap, partition);
                                     try {
                                         ConsumerThreadMain.jobQueue.put(message); // 放入队列中
+                                        consumer.commitSync(offsetAndMetadataMap);
                                     } catch (InterruptedException e) {
                                         e.printStackTrace();
+                                    } catch (ConcurrentModificationException e) {
+                                        System.out.println("ConcurrentModificationException!!!");
                                     }
 
                                 }
 
                             }
                             // 使用完poll从本地缓存拉取到数据之后,需要client调用commitSync方法（或者commitAsync方法）去commit 下一次该去读取 哪一个offset的message。
-                            try {
-                                consumer.commitSync();
-                            } catch (ConcurrentModificationException e) {
-                                System.out.println("ConcurrentModificationException!!!");
-                            }
+                            // consumer.commitSync();
                         }
                     }
                 });
