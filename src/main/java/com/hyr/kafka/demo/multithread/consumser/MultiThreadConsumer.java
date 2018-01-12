@@ -119,14 +119,13 @@ public enum MultiThreadConsumer {
                                 }
 
                             }
+                            records = null;
                             // 使用完poll从本地缓存拉取到数据之后,需要client调用commitSync方法（或者commitAsync方法）去commit 下一次该去读取 哪一个offset的message。
                             // consumer.commitSync();
                         }
                     }
                 });
             }
-            System.out.println("break while!");
-            System.out.println("records:" + records);
 
             if (records != null && !records.isEmpty()) {
                 System.out.println("records.count():" + records.count());
@@ -165,7 +164,6 @@ public enum MultiThreadConsumer {
                             consumer.commitSync(offsetAndMetadataMap);
                             count_index++;
                         } catch (Exception e) {
-                            System.out.println("最后消费异常!");
                             e.printStackTrace();
                         }
 
@@ -174,7 +172,6 @@ public enum MultiThreadConsumer {
             }
 
             countDownLatch1.countDown(); // 解锁
-            System.out.println("put ok!");
 
         } catch (WakeupException e) {
             System.out.println("Catch WakeupException ! Start Consumer Close ...");
