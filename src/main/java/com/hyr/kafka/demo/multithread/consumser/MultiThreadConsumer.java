@@ -109,7 +109,7 @@ public enum MultiThreadConsumer {
                                     CustomMessage message = new CustomMessage(record.partition() + "00000000" + record.offset(), record.value(), offsetAndMetadataMap, partition);
                                     try {
                                         ConsumerThreadMain.jobQueue.put(message); // 放入队列中
-                                        consumer.commitSync(offsetAndMetadataMap);
+                                        doCommit(offsetAndMetadataMap);
                                     } catch (InterruptedException e) {
                                         e.printStackTrace();
                                     } catch (ConcurrentModificationException e) {
@@ -251,7 +251,7 @@ public enum MultiThreadConsumer {
         try {
             consumer.commitSync(offsetAndMetadataMap);
         } catch (Exception e) {
-            e.printStackTrace();
+            doCommit(offsetAndMetadataMap);
         }
     }
 

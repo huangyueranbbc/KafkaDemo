@@ -1,5 +1,6 @@
 package com.hyr.kafka.demo.multithread.consumser;
 
+import com.hyr.kafka.demo.BaseApi.Consumer;
 import com.hyr.kafka.demo.utils.RedisUtil;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
