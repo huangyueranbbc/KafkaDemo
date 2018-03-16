@@ -13,11 +13,17 @@
   
 更新中......    
 
-OffsetAtomic:  
-CREATE TABLE `ttt` (  
-  `id` bigint(20) NOT NULL AUTO_INCREMENT,  
-  `text` varchar(200),  
-  PRIMARY KEY (`id`)  
-) ENGINE=InnoDB AUTO_INCREMENT=10000000024214 DEFAULT CHARSET=utf8  
-  
-如果重复消费 会发生主键冲突  
+重复消费的原因:  
+通常是因为节点故障导致。  
+例如当发生了JAVA垃圾回收GC时，所有的线程会在safepoint处进入"stop the world"阻塞停止状态。  
+当GC时间过长，worker长时间没有发出心跳，如果超出了配置的间隔期，那么kafka会认为该worker节点挂掉了，  
+此时consumer变回执行rebanlance操作。如果过长的gc发生在执行完业务逻辑之后，提交offset之前，  
+consumer便会在这个时间段执行rebanlance。此时获取的是提交之前、但是已经消费完毕的offset，便会产生所谓的重复消费。  
+
+The reasons for repeated consumption are:  
+It is usually caused by a node failure.  
+For example, when the JAVA garbage recycling GC has occurred, all threads enter the "stop the world" blocking stop state at safepoint.  
+When the GC is too long, the worker does not make a heartbeat for a long time, and if it goes beyond the configuration interval, then Kafka will think that the worker node is hanging off,  
+At this point consumer turns back to execute the rebanlance operation. If the overlong GC occurs after the execution of the business logic, before the offset is submitted,  
+Consumer will execute rebanlance at this time. At this point, the offset which has been submitted before, but has already been consumed, will produce so-called repeated consumption.  
+
