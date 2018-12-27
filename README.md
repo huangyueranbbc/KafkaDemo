@@ -1,4 +1,4 @@
-# KafkaDemo  
+# KafkaDemo  [![Travis](https://img.shields.io/badge/KafkaDemo-v1.0.0-green.svg)](https://github.com/huangyueranbbc)  [![Travis](https://img.shields.io/badge/Kafka-API-yellowgreen.svg)](http://kafka.apache.org/0100/javadoc/index.html)  [![Travis](https://img.shields.io/badge/Apache-Kafka-blue.svg)](http://kafka.apache.org/)
 1.BaseApi  
 2.Streams  常用算子操作
 3.Producer  
