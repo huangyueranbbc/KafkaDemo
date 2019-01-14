@@ -13,7 +13,7 @@ import java.util.concurrent.TimeUnit;
 
 /*******************************************************************************
  * @date 2017-12-26 下午 6:32
- * @author: <a href=mailto:huangyr@bonree.com>黄跃然</a>
+ * @author: <a href=mailto:>黄跃然</a>
  * @Description: 滑动窗口 window Join
  ******************************************************************************/
 public class WindowStreams {
@@ -84,8 +84,8 @@ public class WindowStreams {
 
         //发送数据
         Producer producer = new Producer();
-        producer.producerTopic1 = "user-clicks";
-        producer.producerTopic2 = "user-location";
+        producer.PRODUCERTOPIC1 = "user-clicks";
+        producer.PRODUCERTOPIC2 = "user-location";
         producer.runProducer();
     }
 

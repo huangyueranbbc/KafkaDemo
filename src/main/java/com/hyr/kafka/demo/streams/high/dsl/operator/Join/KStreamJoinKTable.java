@@ -13,7 +13,7 @@ import java.util.Map;
 
 /*******************************************************************************
  * @date 2017-12-26 下午 2:59
- * @author: <a href=mailto:huangyr@bonree.com>黄跃然</a>
+ * @author: <a href=mailto:>黄跃然</a>
  * @Description: KStream Join KTable
  ******************************************************************************/
 public class KStreamJoinKTable {
@@ -54,8 +54,8 @@ public class KStreamJoinKTable {
 
         // 发送数据
         com.hyr.kafka.demo.BaseApi.Producer producer = new com.hyr.kafka.demo.BaseApi.Producer();
-        producer.producerTopic1 = "user-clicks";
-        producer.producerTopic2 = "user-location";
+        producer.PRODUCERTOPIC1 = "user-clicks";
+        producer.PRODUCERTOPIC2 = "user-location";
         producer.runProducer();
     }
 

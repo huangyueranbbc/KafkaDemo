@@ -15,7 +15,7 @@ import java.util.Map;
 
 /*******************************************************************************
  * @date 2017-12-26 下午 2:10
- * @author: <a href=mailto:huangyr@bonree.com>黄跃然</a>
+ * @author: <a href=mailto:>黄跃然</a>
  * @Description: 低级Stream DSL接口TopologyBuilder WordCount
  ******************************************************************************/
 public class LowDSLMain {

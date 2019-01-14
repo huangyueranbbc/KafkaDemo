@@ -10,7 +10,7 @@ import java.util.Map;
 
 /*******************************************************************************
  * @date 2017-12-26 下午 2:46
- * @author: <a href=mailto:huangyr@bonree.com>黄跃然</a>
+ * @author: <a href=mailto:>黄跃然</a>
  * @Description: KStreamBuilder 高级DSL接口
  ******************************************************************************/
 public class KStreamBuilderDemo {

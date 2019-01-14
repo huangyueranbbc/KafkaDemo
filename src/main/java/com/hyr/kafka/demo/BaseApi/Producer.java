@@ -9,13 +9,14 @@ import java.util.Random;
 
 /*******************************************************************************
  * @date 2017-12-25 19:51
- * @author: <a href=mailto:huangyr@bonree.com>黄跃然</a>
+ * @author: <a href=mailto:>黄跃然</a>
  * @Description: Producer 生产者 线程安全
  ******************************************************************************/
-public class Producer {
+public class Producer implements Runnable{
 
-    public static String producerTopic1 = "testoffsetp5";
-    public static String producerTopic2 = "testoffsetp5";
+    public static String PRODUCERTOPIC1 = "my-output-topic";
+    public static String PRODUCERTOPIC2 = "my-output-topic";
+    public static String KAFKA_ADDRESS="192.168.0.133:9092";
 
     public static void main(String[] args) throws IOException {
             runProducer();
@@ -24,7 +25,7 @@ public class Producer {
     public static void runProducer() {
         KafkaProducer<String, Long> producer1; //生产者1
         Properties props1 = new Properties();
-        props1.put("bootstrap.servers", "localhost:9092");
+        props1.put("bootstrap.servers", KAFKA_ADDRESS);
         props1.put("client.id", "Producer.1");
         props1.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
         props1.put("value.serializer", "org.apache.kafka.common.serialization.LongSerializer");
@@ -32,7 +33,7 @@ public class Producer {
 
         KafkaProducer<String, String> producer2; //生产者1
         Properties props2 = new Properties();
-        props2.put("bootstrap.servers", "localhost:9092");
+        props2.put("bootstrap.servers", KAFKA_ADDRESS);
         props2.put("client.id", "DemoProducer2");
         props2.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
         props2.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
@@ -51,14 +52,14 @@ public class Producer {
                 long range = 100L;
                 long clicks = (long) (rn.nextDouble() * range);
 
-                ProducerRecord record = new ProducerRecord(producerTopic1, user, clicks); // key:user value:clicks
+                ProducerRecord record = new ProducerRecord(PRODUCERTOPIC1, user, clicks); // key:user value:clicks
                 producer1.send(record);
 
                 int rand = rn.nextInt(50);
                 String location = states[rand];
 
 
-                ProducerRecord rec = new ProducerRecord(producerTopic2, user, location);  // key:user value:location
+                ProducerRecord rec = new ProducerRecord(PRODUCERTOPIC2, user, location);  // key:user value:location
                 producer2.send(rec);
 
                 if (clicks % 7 == 0) {
@@ -71,5 +72,10 @@ public class Producer {
             producer1.close();
             producer2.close();
         }
+    }
+
+    @Override
+    public void run() {
+        runProducer();
     }
 }

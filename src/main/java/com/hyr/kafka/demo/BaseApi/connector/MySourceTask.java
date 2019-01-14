@@ -17,7 +17,7 @@ import java.util.Map;
 
 /*******************************************************************************
  * @date 2017-12-27 上午 10:00
- * @author: <a href=mailto:huangyr@bonree.com>黄跃然</a>
+ * @author: <a href=mailto:>黄跃然</a>
  * @Description: 自定义SourceTask SourceTask导入数据任务 SinkTask导出数据任务
  ******************************************************************************/
 public class MySourceTask extends SourceTask {

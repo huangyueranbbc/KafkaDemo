@@ -8,7 +8,7 @@ import org.apache.kafka.streams.state.KeyValueStore;
 
 /*******************************************************************************
  * @date 2017-12-26 下午 2:10
- * @author: <a href=mailto:huangyr@bonree.com>黄跃然</a>
+ * @author: <a href=mailto:>黄跃然</a>
  * @Description: 自定义Processor
  ******************************************************************************/
 public class MyProcessor implements Processor<String, String> {

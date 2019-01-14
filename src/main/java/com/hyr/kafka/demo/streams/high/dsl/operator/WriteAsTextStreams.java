@@ -12,7 +12,7 @@ import java.util.Map;
 
 /*******************************************************************************
  * @date 2017-12-29 下午 4:25
- * @author: <a href=mailto:huangyr@bonree.com>黄跃然</a>
+ * @author: <a href=mailto:>黄跃然</a>
  * @Description: WriteAsText Write the records to a file. 将记录写入到文件
  ******************************************************************************/
 public class WriteAsTextStreams {

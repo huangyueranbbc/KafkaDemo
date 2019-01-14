@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /*******************************************************************************
  * @date 2018-01-08 上午 15:15
- * @author: <a href=mailto:huangyr@bonree.com>黄跃然</a>
+ * @author: <a href=mailto:>黄跃然</a>
  * @Description: 多线程消费DEMO 平滑退出不丢数据
  ******************************************************************************/
 public class ConsumerThreadMain {

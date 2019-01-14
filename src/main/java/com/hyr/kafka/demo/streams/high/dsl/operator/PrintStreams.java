@@ -11,7 +11,7 @@ import java.util.Map;
 
 /*******************************************************************************
  * @date 2017-12-29 下午 4:19
- * @author: <a href=mailto:huangyr@bonree.com>黄跃然</a>
+ * @author: <a href=mailto:>黄跃然</a>
  * @Description: Print 打印记录到System.out
  ******************************************************************************/
 public class PrintStreams {

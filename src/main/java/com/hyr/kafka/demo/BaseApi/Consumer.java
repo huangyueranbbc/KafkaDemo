@@ -13,12 +13,14 @@ import java.util.*;
 
 /*******************************************************************************
  * @date 2017-12-25 19:51
- * @author: <a href=mailto:huangyr@bonree.com>黄跃然</a>
+ * @author: <a href=mailto:>黄跃然</a>
  * @Description: Consumer 消费者 Kafka consumer不是线程安全的
  ******************************************************************************/
-public class Consumer {
+public class Consumer implements Runnable{
 
-    public static String topic = "my-output-topic";
+    public static String TOPIC = "my-output-topic";
+    public  static String KAFKA_ADDRESS="192.168.0.133:9092";
+    public  static String ZOOKEEPER_ADDRESS="192.168.0.133:2181";
 
     public static void main(String[] args) throws IOException {
         runConsumer();
@@ -28,8 +30,8 @@ public class Consumer {
         String group = "0";
 
         Properties props = new Properties();
-        props.put("bootstrap.servers", "localhost:9092");
-        props.put("zookeeper.connect", "localhost:2181");
+        props.put("bootstrap.servers", KAFKA_ADDRESS);
+        props.put("zookeeper.connect", ZOOKEEPER_ADDRESS);
         props.put("group.id", group);
         props.put("enable.auto.commit", "true");
         props.put("auto.commit.interval.ms", "1000");
@@ -38,14 +40,15 @@ public class Consumer {
         props.put("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
 
         KafkaConsumer<String, Long> consumer = new KafkaConsumer<String, Long>(props);
-        consumer.subscribe(Arrays.asList(topic));
-        System.out.println("Subscribed to topic " + topic);
+        consumer.subscribe(Arrays.asList(TOPIC));
+        System.out.println("Subscribed to topic " + TOPIC);
         Long unixTime;
         Long totalLatency = 0L;
         Long count = 0L;
         Long minCreationTime = Long.MAX_VALUE;
 
         while (true) {
+            System.out.println("start consumer..."+new Date());
             // 如果没有数据就等待100ms。如果有就读取。
             ConsumerRecords<String, Long> records = consumer.poll(100);
             // 迭代每一个partition
@@ -82,5 +85,10 @@ public class Consumer {
         SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         String dateString = formatter.format(currentTime);
         return dateString;
+    }
+
+    @Override
+    public void run() {
+        runConsumer();
     }
 }

@@ -15,7 +15,7 @@ import java.util.*;
 
 /*******************************************************************************
  * @date 2017-12-28 上午 9:40
- * @author: <a href=mailto:huangyr@bonree.com>黄跃然</a>
+ * @author: <a href=mailto:>黄跃然</a>
  * @Description: kafka 保证消息处理和offset提交的原子性。 解决数据重复消费或数据丢失的问题。
  * Ensure the atomicity of message processing and offset submission. Solve the problem of data duplication or data loss.
  ******************************************************************************/

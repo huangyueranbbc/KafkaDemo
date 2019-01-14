@@ -11,7 +11,7 @@ import java.util.*;
 
 /*******************************************************************************
  * @date 2017-12-27 上午 9:59
- * @author: <a href=mailto:huangyr@bonree.com>黄跃然</a>
+ * @author: <a href=mailto:>黄跃然</a>
  * @Description: 自定义的连接器Connector SourceConnectors从其他系统导入数据 SinkConnector导出数据
  ******************************************************************************/
 public class MySourceConnector extends SourceConnector {

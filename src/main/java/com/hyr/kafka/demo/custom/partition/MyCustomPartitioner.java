@@ -9,7 +9,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /*******************************************************************************
  * @date 2018-01-10 上午 15:15
- * @author: <a href=mailto:huangyr@bonree.com>黄跃然</a>
+ * @author: <a href=mailto:>黄跃然</a>
  * @Description: 自定义分区器
  ******************************************************************************/
 public class MyCustomPartitioner implements Partitioner {

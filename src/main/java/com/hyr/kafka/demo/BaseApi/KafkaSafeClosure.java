@@ -17,7 +17,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /*******************************************************************************
  * @date 2018-01-08 上午 10:49
- * @author: <a href=mailto:huangyr@bonree.com>黄跃然</a>
+ * @author: <a href=mailto:>黄跃然</a>
  * @Description: Kafka优雅的关闭
  ******************************************************************************/
 public class KafkaSafeClosure {

@@ -12,7 +12,7 @@ import java.util.Map;
 
 /*******************************************************************************
  * @date 2017-12-29 下午 4:22
- * @author: <a href=mailto:huangyr@bonree.com>黄跃然</a>
+ * @author: <a href=mailto:>黄跃然</a>
  * @Description: SelectKey 为每个记录分配一个新的KEY，可能是一个新的KEY类型。
  ******************************************************************************/
 public class SelectKeyStreams {

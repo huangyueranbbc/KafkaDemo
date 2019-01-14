@@ -9,13 +9,13 @@ import java.util.Random;
 
 /*******************************************************************************
  * @date 2017-12-25 19:51
- * @author: <a href=mailto:huangyr@bonree.com>黄跃然</a>
+ * @author: <a href=mailto:>黄跃然</a>
  * @Description: 自定义分区器Producer
  ******************************************************************************/
 public class CustomPartitionProducer {
 
-    public static String producerTopic1 = "testoffsetp5";
-    public static String producerTopic2 = "testoffsetp5";
+    public static String PRODUCERTOPIC1 = "testoffsetp5";
+    public static String PRODUCERTOPIC2 = "testoffsetp5";
 
     public static void main(String[] args) throws IOException {
             runProducer();
@@ -53,14 +53,14 @@ public class CustomPartitionProducer {
                 long range = 100L;
                 long clicks = (long) (rn.nextDouble() * range);
 
-                ProducerRecord record = new ProducerRecord(producerTopic1, user, clicks); // key:user value:clicks
+                ProducerRecord record = new ProducerRecord(PRODUCERTOPIC1, user, clicks); // key:user value:clicks
                 producer1.send(record);
 
                 int rand = rn.nextInt(50);
                 String location = states[rand];
 
 
-                ProducerRecord rec = new ProducerRecord(producerTopic2, user, location);  // key:user value:location
+                ProducerRecord rec = new ProducerRecord(PRODUCERTOPIC2, user, location);  // key:user value:location
                 producer2.send(rec);
 
                 if (clicks % 7 == 0) {

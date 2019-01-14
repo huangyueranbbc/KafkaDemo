@@ -13,7 +13,7 @@ import java.util.Map;
 
 /*******************************************************************************
  * @date 2017-12-28 下午 6:10
- * @author: <a href=mailto:huangyr@bonree.com>黄跃然</a>
+ * @author: <a href=mailto:>黄跃然</a>
  * @Description: ForeachAction 对每个记录执行无状态操作
  ******************************************************************************/
 public class ForeachStreams {
@@ -49,8 +49,8 @@ public class ForeachStreams {
 
         //发送数据
         Producer producer = new Producer();
-        producer.producerTopic1 = "my-input-topic";
-        producer.producerTopic2 = "my-input-topic";
+        producer.PRODUCERTOPIC1 = "my-input-topic";
+        producer.PRODUCERTOPIC2 = "my-input-topic";
         producer.runProducer();
     }
 

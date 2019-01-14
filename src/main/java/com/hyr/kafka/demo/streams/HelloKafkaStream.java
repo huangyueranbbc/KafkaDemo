@@ -15,7 +15,7 @@ import java.util.Map;
 
 /*******************************************************************************
  * @date 2017-12-25 19:51
- * @author: <a href=mailto:huangyr@bonree.com>黄跃然</a>
+ * @author: <a href=mailto:>黄跃然</a>
  * @Description: 入门DEMO 了解KafkaStream的创建和执行 By 高级StreamDSL
  ******************************************************************************/
 public class HelloKafkaStream {

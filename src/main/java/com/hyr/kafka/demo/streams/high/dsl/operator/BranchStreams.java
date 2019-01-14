@@ -12,7 +12,7 @@ import java.util.Map;
 
 /*******************************************************************************
  * @date 2017-12-28 下午 5:28
- * @author: <a href=mailto:huangyr@bonree.com>黄跃然</a>
+ * @author: <a href=mailto:>黄跃然</a>
  * @Description: Branch 将stream按照规则进行切分多个stream。
  ******************************************************************************/
 public class BranchStreams {

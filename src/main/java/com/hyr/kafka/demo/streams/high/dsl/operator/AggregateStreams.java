@@ -10,7 +10,7 @@ import java.util.Map;
 
 /*******************************************************************************
  * @date 2017-12-26 下午 4:59
- * @author: <a href=mailto:huangyr@bonree.com>黄跃然</a>
+ * @author: <a href=mailto:>黄跃然</a>
  * @Description: aggregate 聚合
  ******************************************************************************/
 public class AggregateStreams {
@@ -56,8 +56,8 @@ public class AggregateStreams {
 
         // 发送数据
         com.hyr.kafka.demo.BaseApi.Producer producer = new com.hyr.kafka.demo.BaseApi.Producer();
-        producer.producerTopic1 = "my-input-topic1";
-        producer.producerTopic2 = "my-input-topic2";
+        producer.PRODUCERTOPIC1 = "my-input-topic1";
+        producer.PRODUCERTOPIC2 = "my-input-topic2";
         producer.runProducer();
     }
 

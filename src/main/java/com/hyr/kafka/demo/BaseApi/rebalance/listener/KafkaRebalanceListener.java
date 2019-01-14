@@ -14,7 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /*******************************************************************************
  * @date 2017-12-28 上午 9:40
- * @author: <a href=mailto:huangyr@bonree.com>黄跃然</a>
+ * @author: <a href=mailto:>黄跃然</a>
  * @Description: kafka rebalance监听 存储、消费指定位置的offset的数据
  ******************************************************************************/
 public class KafkaRebalanceListener {
